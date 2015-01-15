@@ -1,15 +1,14 @@
 // Copyright © 2015, Peter Atashian
 // Licensed under the MIT License <LICENSE.md>
-#![feature(collections, env, io, os, process, std_misc)]
+#![feature(collections, exit_status)]
 
-extern crate "winapi" as win;
-extern crate "kernel32-sys" as k32;
+extern crate winapi as win;
+extern crate kernel32 as k32;
 
-use std::default::{Default};
 use std::env::{args, current_dir, set_exit_status};
-use std::ffi::{AsOsStr, OsString};
+use std::ffi::{OsString};
 use std::io::{Error};
-use std::mem::{size_of_val};
+use std::mem::{size_of_val, zeroed};
 use std::os::windows::prelude::*;
 use std::process::{Command};
 use std::ptr::{null_mut};
@@ -50,17 +49,17 @@ fn print_zombies(handle: win::HANDLE) {
             k32::K32GetProcessImageFileNameW(process, buf.as_mut_ptr(), buf.len() as win::DWORD)
         };
         assert!(len != 0, "Failed to get process image name: {}", Error::last_os_error());
-        let name = <OsString as OsStringExt>::from_wide(&buf[..len as usize]);
+        let name = OsString::from_wide(&buf[..len as usize]);
         println!("Zombie process: {:?}", name);
     }
 }
 
 // In the event of a signal, print out all zombies and abandon ship
-extern "system" fn handler(_: win::DWORD) -> win::BOOL {
+unsafe extern "system" fn handler(_: win::DWORD) -> win::BOOL {
     println!("Received signal!");
-    print_zombies(unsafe { job_handle });
+    print_zombies(job_handle);
     println!("Terminating!");
-    let err = unsafe { k32::TerminateJobObject(job_handle, 273) };
+    let err = k32::TerminateJobObject(job_handle, 273);
     assert!(err != 0, "Failed to terminate job object: {}", Error::last_os_error());
     win::TRUE
 }
@@ -93,7 +92,7 @@ fn main() {
     }
     unsafe { job_handle = handle };
     // Automatically terminate job object when all handles to it close
-    let mut info = <win::JOBOBJECT_EXTENDED_LIMIT_INFORMATION as Default>::default();
+    let mut info: win::JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
     info.BasicLimitInformation.LimitFlags = win::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     let err = unsafe { k32::SetInformationJobObject(
         handle, win::JOBOBJECTINFOCLASS::JobObjectExtendedLimitInformation,

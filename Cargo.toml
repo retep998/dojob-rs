@@ -5,8 +5,8 @@ version = "0.0.1"
 authors = ["Peter Atashian <retep998@gmail.com>"]
 
 [dependencies]
-winapi = "*"
-kernel32-sys = "*"
+winapi = "0.1"
+kernel32-sys = "0.1"
 
 [profile.release]
 lto = true
