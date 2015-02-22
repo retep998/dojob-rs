@@ -49,5 +49,7 @@ fn main() {
     let args: Vec<_> = args().collect();
     // Actually spawn the command you really wanted
     let status = Command::new(&args[1]).args(&args[2..]).status().unwrap();
+    assert!(unsafe { k32::TerminateJobObject(handle, 666) } != 0,
+        "Failed to terminate job object leftovers: {}", Error::last_os_error());
     set_exit_status(status.code().unwrap())
 }
