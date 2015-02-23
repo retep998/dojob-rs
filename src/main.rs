@@ -8,6 +8,7 @@ extern crate "kernel32-sys" as k32;
 use std::env::{args, current_dir, set_exit_status};
 use std::ffi::{AsOsStr};
 use std::io::{Error};
+use std::mem::{size_of_val, zeroed};
 use std::os::windows::prelude::*;
 use std::process::{Command};
 use std::ptr::{null_mut};
@@ -39,8 +40,15 @@ fn main() {
         assert!(handle != null_mut(), "Failed to recreate job object: {}", Error::last_os_error());
     }
     unsafe { job_handle = handle };
-    let process = unsafe { k32::GetCurrentProcess() };
+    // Automatically terminate job object when all handles to it close
+    let mut info: win::JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
+    info.BasicLimitInformation.LimitFlags = win::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+    assert!(unsafe { k32::SetInformationJobObject(
+            handle, win::JOBOBJECTINFOCLASS::JobObjectExtendedLimitInformation,
+            &mut info as *mut _ as win::LPVOID, size_of_val(&info) as win::DWORD) } != 0,
+        "Failed to set job object limit information: {}", Error::last_os_error());
     // Everything created from this process will be part of the job object
+    let process = unsafe { k32::GetCurrentProcess() };
     assert!(unsafe { k32::AssignProcessToJobObject(handle, process) } != 0,
         "Failed to assign process to job object: {}", Error::last_os_error());
     // Set up a signal handler to kill the job object if things go south
@@ -49,7 +57,5 @@ fn main() {
     let args: Vec<_> = args().collect();
     // Actually spawn the command you really wanted
     let status = Command::new(&args[1]).args(&args[2..]).status().unwrap();
-    assert!(unsafe { k32::TerminateJobObject(handle, 666) } != 0,
-        "Failed to terminate job object leftovers: {}", Error::last_os_error());
     set_exit_status(status.code().unwrap())
 }
