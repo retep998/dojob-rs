@@ -52,7 +52,7 @@ fn main() {
     assert!(unsafe { k32::AssignProcessToJobObject(handle, process) } != 0,
         "Failed to assign process to job object: {}", Error::last_os_error());
     // Set up a signal handler to kill the job object if things go south
-    assert!(unsafe { k32::SetConsoleCtrlHandler(handler, win::TRUE) } != 0,
+    assert!(unsafe { k32::SetConsoleCtrlHandler(Some(handler), win::TRUE) } != 0,
         "Failed to set signal handler: {}", Error::last_os_error());
     let args: Vec<_> = args().collect();
     // Actually spawn the command you really wanted
