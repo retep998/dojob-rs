@@ -7,3 +7,6 @@ authors = ["Peter Atashian <retep998@gmail.com>"]
 [dependencies]
 winapi = "*"
 kernel32-sys = "*"
+
+[profile.release]
+lto = true
