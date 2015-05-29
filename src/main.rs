@@ -4,6 +4,7 @@
 
 extern crate winapi as win;
 extern crate kernel32 as k32;
+extern crate psapi;
 
 use std::env::{args, current_dir, set_exit_status};
 use std::ffi::{OsString};
@@ -46,7 +47,7 @@ fn print_zombies(handle: win::HANDLE) {
         assert!(process != null_mut(), "Failed to open process: {}", Error::last_os_error());
         let mut buf = [0; 0x1000];
         let len = unsafe {
-            k32::K32GetProcessImageFileNameW(process, buf.as_mut_ptr(), buf.len() as win::DWORD)
+            psapi::GetProcessImageFileNameW(process, buf.as_mut_ptr(), buf.len() as win::DWORD)
         };
         assert!(len != 0, "Failed to get process image name: {}", Error::last_os_error());
         let name = OsString::from_wide(&buf[..len as usize]);
