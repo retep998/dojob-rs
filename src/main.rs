@@ -1,17 +1,16 @@
 // Copyright © 2015, Peter Atashian
 // Licensed under the MIT License <LICENSE.md>
-#![feature(collections, exit_status)]
 
 extern crate winapi as win;
 extern crate kernel32 as k32;
 extern crate psapi;
 
-use std::env::{args, current_dir, set_exit_status};
+use std::env::{args, current_dir};
 use std::ffi::{OsString};
 use std::io::{Error};
 use std::mem::{size_of_val, zeroed};
 use std::os::windows::prelude::*;
-use std::process::{Command};
+use std::process::{Command, exit};
 use std::ptr::{null_mut};
 
 static mut job_handle: win::HANDLE = 0 as win::HANDLE;
@@ -69,15 +68,14 @@ fn main() {
     let args: Vec<_> = args().collect();
     if args.len() < 2 {
         println!("Please pass the command you want to invoke as arguments to this program");
-        set_exit_status(1);
-        return
+        exit(1)
     }
     // We use the current directory as the job object name
     // This way we can clean up job objects lingering from previous builds
     let dir = current_dir().unwrap();
-    let name: Vec<_> = dir.as_os_str().encode_wide().collect();
+    let mut name: Vec<_> = dir.as_os_str().encode_wide().collect();
     // Replace \ with /, otherwise it interprets the name as a path
-    let name = name.map_in_place(|c| if c == '\\' as u16 { '/' as u16 } else { c });
+    for c in &mut name { if *c == '\\' as u16 { *c = '/' as u16 } }
     let mut handle = unsafe { k32::CreateJobObjectW(null_mut(), name.as_ptr()) };
     assert!(handle != null_mut(), "Failed to create job object: {}", Error::last_os_error());
     if unsafe { k32::GetLastError() } == win::ERROR_ALREADY_EXISTS {
@@ -111,5 +109,5 @@ fn main() {
     let status = Command::new(&args[1]).args(&args[2..]).status().unwrap();
     // Just in case we get any zombies even though things passed
     print_zombies(handle);
-    set_exit_status(status.code().unwrap())
+    exit(status.code().unwrap())
 }
