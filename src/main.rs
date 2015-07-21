@@ -31,17 +31,17 @@ fn print_zombies(handle: win::HANDLE) {
         &mut procs as *mut _ as win::LPVOID, size_of_val(&procs) as win::DWORD, null_mut(),
     ) } == 0 {
         if unsafe { k32::GetLastError() } == win::ERROR_MORE_DATA {
-            panic!("Failed to query job object: {}", Error::last_os_error());
-        } else {
             // Seriously, this should not happen
+            procs.0.NumberOfProcessIdsInList = NPROC as win::DWORD;
             println!("WARNING: More than {0} zombies! Only displaying first {0}.", NPROC);
+        } else {
+            panic!("Failed to query job object: {}", Error::last_os_error());
         }
     }
     // Print out the processes
-    for i in 0..procs.0.NumberOfProcessIdsInList {
-        let procid = procs.1[i as usize] as win::DWORD;
+    for &procid in &procs.1[..procs.0.NumberOfProcessIdsInList as usize] {
         let process = unsafe {
-            k32::OpenProcess(win::PROCESS_QUERY_INFORMATION, win::FALSE, procid)
+            k32::OpenProcess(win::PROCESS_QUERY_INFORMATION, win::FALSE, procid as win::DWORD)
         };
         assert!(process != null_mut(), "Failed to open process: {}", Error::last_os_error());
         let mut buf = [0; 0x1000];
