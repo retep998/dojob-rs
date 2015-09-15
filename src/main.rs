@@ -12,6 +12,7 @@ use std::mem::{size_of_val, zeroed};
 use std::os::windows::prelude::*;
 use std::process::{Command, exit};
 use std::ptr::{null_mut};
+use std::thread::{sleep_ms};
 
 static mut job_handle: win::HANDLE = 0 as win::HANDLE;
 
@@ -73,7 +74,7 @@ fn main() {
     // We use the current directory as the job object name
     // This way we can clean up job objects lingering from previous builds
     let dir = current_dir().unwrap();
-    let mut name: Vec<_> = dir.as_os_str().encode_wide().collect();
+    let mut name: Vec<_> = dir.as_os_str().encode_wide().chain(Some(0)).collect();
     // Replace \ with /, otherwise it interprets the name as a path
     for c in &mut name { if *c == '\\' as u16 { *c = '/' as u16 } }
     let mut handle = unsafe { k32::CreateJobObjectW(null_mut(), name.as_ptr()) };
@@ -85,7 +86,7 @@ fn main() {
         let err = unsafe { k32::TerminateJobObject(handle, 9001) };
         assert!(err != 0, "Failed to terminate existing job object: {}", Error::last_os_error());
         // We have to sleep otherwise this process might get killed in the above termination
-        unsafe { k32::Sleep(1000) };
+        sleep_ms(1000);
         handle = unsafe { k32::CreateJobObjectW(null_mut(), name.as_ptr()) };
         assert!(handle != null_mut(), "Failed to recreate job object: {}", Error::last_os_error());
     }
