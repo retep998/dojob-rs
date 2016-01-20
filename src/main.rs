@@ -12,7 +12,8 @@ use std::mem::{size_of_val, zeroed};
 use std::os::windows::prelude::*;
 use std::process::{Command, exit};
 use std::ptr::{null_mut};
-use std::thread::{sleep_ms};
+use std::thread::{sleep};
+use std::time::{Duration};
 
 static mut job_handle: win::HANDLE = 0 as win::HANDLE;
 
@@ -28,7 +29,7 @@ fn print_zombies(handle: win::HANDLE) {
     }, [0; NPROC]);
     // Fetch the list of processes
     if unsafe { k32::QueryInformationJobObject(
-        handle, win::JOBOBJECTINFOCLASS::JobObjectBasicProcessIdList,
+        handle, win::JobObjectBasicProcessIdList,
         &mut procs as *mut _ as win::LPVOID, size_of_val(&procs) as win::DWORD, null_mut(),
     ) } == 0 {
         if unsafe { k32::GetLastError() } == win::ERROR_MORE_DATA {
@@ -86,7 +87,7 @@ fn main() {
         let err = unsafe { k32::TerminateJobObject(handle, 9001) };
         assert!(err != 0, "Failed to terminate existing job object: {}", Error::last_os_error());
         // We have to sleep otherwise this process might get killed in the above termination
-        sleep_ms(1000);
+        sleep(Duration::from_secs(1));
         handle = unsafe { k32::CreateJobObjectW(null_mut(), name.as_ptr()) };
         assert!(handle != null_mut(), "Failed to recreate job object: {}", Error::last_os_error());
     }
@@ -95,7 +96,7 @@ fn main() {
     let mut info: win::JOBOBJECT_EXTENDED_LIMIT_INFORMATION = unsafe { zeroed() };
     info.BasicLimitInformation.LimitFlags = win::JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
     let err = unsafe { k32::SetInformationJobObject(
-        handle, win::JOBOBJECTINFOCLASS::JobObjectExtendedLimitInformation,
+        handle, win::JobObjectExtendedLimitInformation,
         &mut info as *mut _ as win::LPVOID, size_of_val(&info) as win::DWORD,
     ) };
     assert!(err != 0, "Failed to set job object limit information: {}", Error::last_os_error());
